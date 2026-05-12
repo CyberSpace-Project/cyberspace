@@ -1,0 +1,175 @@
+/* ============================================================================
+ * CyberSpace NIS2 — Design System (Basis)
+ * HTL Spengergasse Wien | Diplomarbeit 2025/2026
+ * Karen Garcia — Frontend
+ *
+ * Inhalt: Variablen, Farben, Typografie, Reset, gemeinsame Komponenten
+ * Wird von ALLEN Seiten importiert
+ * ============================================================================ */
+
+/* ============================================================================
+   1. CSS VARIABLEN
+   ============================================================================ */
+:root {
+  /* --- Farben aus Mock-Up (v3) --- */
+  --color-green: #2ECC71;
+  --color-green-dark: #27AE60;
+  --color-blue: #3498DB;
+  --color-blue-dark: #2980B9;
+  --color-red: #E74C3C;
+  --color-red-dark: #C0392B;
+  --color-orange: #F39C12;
+
+  /* --- Alias-Namen (für Sprint 2) --- */
+  --color-primary:      #3498DB;       /* = --color-blue        */
+  --color-primary-dark: #2980B9;       /* = --color-blue-dark   */
+  --color-secondary:    #F5A623;       /* Orange für Recovery   */
+  --color-success:      #1E8449;       /* Dunkelgrün            */
+  --color-danger:       #C0392B;       /* Rot für Admin-Header  */
+  --color-danger-dark:  #A93226;
+
+  /* --- Neutrale Farben --- */
+  --color-white: #FFFFFF;
+  --color-bg: #ECF0F1;
+  --color-input-bg: #FAFAFA;
+  --color-border: #E0E0E0;
+  --color-muted: #95A5A6;
+  --color-text: #2C3E50;
+  --color-text-light: #7F8C8D;
+  --color-link: #8E44AD;
+
+  /* --- Typografie --- */
+  --font-family: Arial, Helvetica, sans-serif;
+  --font-size-xs:   0.75rem;
+  --font-size-sm:   0.875rem;
+  --font-size-body: 1rem;
+
+  /* --- Abstände --- */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-xxl: 2.5rem;
+
+  /* --- Border & Schatten --- */
+  --border-radius: 8px;
+  --border-radius-lg: 16px;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+
+  /* --- Übergänge --- */
+  --transition: 200ms ease;
+}
+
+/* ============================================================================
+   2. RESET & BASIS
+   ============================================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-family);
+  font-size: 1rem;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ============================================================================
+   3. GEMEINSAME FORMULAR-KOMPONENTEN
+   ============================================================================ */
+.form-group {
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-sm);
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  color: var(--color-text);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-control::placeholder { color: var(--color-muted); }
+.form-control:focus { outline: none; border-color: var(--color-blue); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+.form-control.is-invalid { border-color: var(--color-red); }
+.form-control.is-invalid:focus { box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15); }
+.form-control.is-valid { border-color: var(--color-green); }
+
+/* --- Fehlermeldungen --- */
+.invalid-feedback { display: none; font-size: 0.8125rem; color: var(--color-red); margin-top: var(--spacing-xs); text-align: left; }
+.form-control.is-invalid ~ .invalid-feedback { display: block; }
+
+/* --- Checkbox --- */
+.form-check { display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
+.form-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-blue); cursor: pointer; }
+.form-check label { font-size: 0.875rem; color: var(--color-text); cursor: pointer; margin: 0; text-align: left; }
+
+/* ============================================================================
+   4. BUTTONS
+   ============================================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 2.5rem;
+  font-family: var(--font-family);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color var(--transition), transform var(--transition);
+  text-decoration: none;
+}
+
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Bestehende Button-Klassen (Sprint 1) */
+.btn--green { background: var(--color-green); }
+.btn--green:hover { background: var(--color-green-dark); }
+.btn--blue { background: var(--color-blue); }
+.btn--blue:hover { background: var(--color-blue-dark); }
+.btn--block { width: 100%; }
+.btn--center { margin: 0 auto; display: flex; max-width: 300px; }
+
+/* Neue Button-Klassen (Sprint 2) */
+.btn--primary { background: var(--color-primary); }
+.btn--primary:hover { background: var(--color-primary-dark); }
+.btn--secondary {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.btn--secondary:hover { background: rgba(255, 255, 255, 0.3); }
+.btn--danger { background: var(--color-danger); }
+.btn--danger:hover { background: var(--color-danger-dark); }
+
+/* ============================================================================
+   5. ALERTS
+   ============================================================================ */
+.alert { padding: 0.75rem 1rem; border-radius: var(--border-radius); font-size: 0.875rem; margin-bottom: var(--spacing-lg); display: none; }
+.alert--danger { background: rgba(231, 76, 60, 0.1); color: var(--color-red-dark); border: 1px solid rgba(231, 76, 60, 0.2); }
+.alert--success { background: rgba(46, 204, 113, 0.1); color: var(--color-green-dark); border: 1px solid rgba(46, 204, 113, 0.2); }
+.alert.show { display: block; }
+
+/* ============================================================================
+   6. RESPONSIVE
+   ============================================================================ */
+@media (max-width: 576px) {
+  body { font-size: 0.9375rem; }
+}
