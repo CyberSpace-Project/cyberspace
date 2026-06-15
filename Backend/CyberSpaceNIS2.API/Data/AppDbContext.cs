@@ -14,6 +14,8 @@ public class AppDbContext : DbContext
     public DbSet<SpielSession> Session { get; set; }
     public DbSet<Phase> Phase { get; set; }
     public DbSet<Rolle> Rollen { get; set; }
+    public DbSet<SessionSpieler> SessionSpieler { get; set; }
+    public DbSet<Spielverlauf> Spielverlauf { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,7 +69,17 @@ public class AppDbContext : DbContext
             entity.ToTable("Rollen");
             entity.HasKey(e => e.RolleId);
         });
-        
+        modelBuilder.Entity<SessionSpieler>(entity =>
+        {
+            entity.ToTable("SessionSpieler");
+            entity.HasKey(e => new { e.SessionId, e.SpielerId });
+        });
+
+        modelBuilder.Entity<Spielverlauf>(entity =>
+        {
+            entity.ToTable("Spielverlauf");
+            entity.HasKey(e => e.SpieverlaufId);
+        });
         
     }
     

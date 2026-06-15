@@ -16,3 +16,16 @@ public class SessionResponse
     public DateTime? EndZeit { get; set; }
     public DateTime ErstelltAm { get; set; }
 }
+
+public class RolleWaehlenRequest
+{
+    public int SpielerId { get; set; }
+    public int RolleId { get; set; }
+}
+
+public class OptionWaehlenRequest
+{
+    public int KarteId { get; set; }
+    public int OptionId { get; set; }
+    public int SpielerId { get; set; }
+}

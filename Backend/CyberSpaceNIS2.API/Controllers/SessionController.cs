@@ -211,7 +211,211 @@ public class SessionController : ControllerBase
             message = "Session erfolgreich abgeschlossen!"
         });
     }
+    
+    // GET /api/sessions/{id}/rollen → Verfuegbare Rollen fuer Session
+    [HttpGet("{id}/rollen")]
+    public async Task<IActionResult> GetSessionRollen(int id)
+    {
+        var session = await _db.Session.FirstOrDefaultAsync(s => s.SessionId == id);
+        if (session == null)
+            return NotFound(new { message = "Session nicht gefunden." });
 
+        var rollen = await _db.Rollen.ToListAsync();
+        var vergebeneRollen = await _db.SessionSpieler
+            .Where(ss => ss.SessionId == id && ss.RolleId != null)
+            .Select(ss => ss.RolleId)
+            .ToListAsync();
+
+        var result = rollen.Select(r => new
+        {
+            rolleId = r.RolleId,
+            name = r.Name,
+            beschreibung = r.Beschreibung,
+            farbe = r.Farbe,
+            farbeHex = r.FarbeHex,
+            status = vergebeneRollen.Contains(r.RolleId) ? "Vergeben" : "Verfuegbar"
+        });
+
+        return Ok(result);
+    }
+
+    // POST /api/sessions/{id}/rolle-waehlen → Rolle waehlen
+    [HttpPost("{id}/rolle-waehlen")]
+    public async Task<IActionResult> RolleWaehlen(int id, [FromBody] RolleWaehlenRequest request)
+    {
+        var session = await _db.Session.FirstOrDefaultAsync(s => s.SessionId == id);
+        if (session == null)
+            return NotFound(new { message = "Session nicht gefunden." });
+
+        var rolleVergeben = await _db.SessionSpieler
+            .AnyAsync(ss => ss.SessionId == id && ss.RolleId == request.RolleId);
+        if (rolleVergeben)
+            return BadRequest(new { message = "Diese Rolle ist bereits vergeben." });
+
+        var spieler = await _db.SessionSpieler
+            .FirstOrDefaultAsync(ss => ss.SessionId == id && ss.SpielerId == request.SpielerId);
+
+        if (spieler == null)
+        {
+            spieler = new SessionSpieler
+            {
+                SessionId = id,
+                SpielerId = request.SpielerId,
+                RolleId = request.RolleId,
+                Status = "Aktiv",
+                BeigetretenAm = DateTime.UtcNow
+            };
+            _db.SessionSpieler.Add(spieler);
+        }
+        else
+        {
+            spieler.RolleId = request.RolleId;
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Rolle erfolgreich gewaehlt.", rolleId = request.RolleId });
+    }
+
+    // GET /api/sessions/{id}/karte → Naechste Karte ziehen
+    [HttpGet("{id}/karte")]
+    public async Task<IActionResult> GetNaechsteKarte(int id)
+    {
+        var session = await _db.Session.FirstOrDefaultAsync(s => s.SessionId == id);
+        if (session == null)
+            return NotFound(new { message = "Session nicht gefunden." });
+
+        if (session.Status != "Laufend")
+            return BadRequest(new { message = "Session muss laufend sein." });
+
+        var szenario = await _db.Szenario.FirstOrDefaultAsync(s => s.SzenarioId == session.SzenarioId);
+        var phasen = await _db.Phase
+            .Where(p => p.SzenarioId == session.SzenarioId)
+            .OrderBy(p => p.Reihenfolge)
+            .ToListAsync();
+
+        var bereitsGezogen = await _db.Spielverlauf
+            .Where(sv => sv.SessionId == id)
+            .Select(sv => sv.KarteId)
+            .ToListAsync();
+
+        foreach (var phase in phasen)
+        {
+            var karte = await _db.Karte
+                .Include(k => k.Optionen)
+                .Where(k => k.PhaseId == phase.PhaseId && k.KartenTyp == "Aktion" && !bereitsGezogen.Contains(k.KarteId))
+                .OrderBy(k => k.Reihenfolge)
+                .FirstOrDefaultAsync();
+
+            if (karte != null)
+            {
+                return Ok(new
+                {
+                    karteId = karte.KarteId,
+                    kartenCode = karte.KartenCode,
+                    titel = karte.Titel,
+                    inhalt = karte.Inhalt,
+                    kartenTyp = karte.KartenTyp,
+                    punkte = karte.Punkte,
+                    phase = phase.Titel,
+                    phaseNummer = phase.Reihenfolge,
+                    optionen = karte.Optionen.Select(o => new
+                    {
+                        optionId = o.OptionId,
+                        text = o.Text,
+                        punkte = o.Punkte
+                    })
+                });
+            }
+        }
+
+        return Ok(new { message = "Keine weiteren Karten verfuegbar.", fertig = true });
+    }
+
+    // POST /api/sessions/{id}/option → Option waehlen und Punkte vergeben
+    [HttpPost("{id}/option")]
+    public async Task<IActionResult> OptionWaehlen(int id, [FromBody] OptionWaehlenRequest request)
+    {
+        var session = await _db.Session.FirstOrDefaultAsync(s => s.SessionId == id);
+        if (session == null)
+            return NotFound(new { message = "Session nicht gefunden." });
+
+        var karte = await _db.Karte.FirstOrDefaultAsync(k => k.KarteId == request.KarteId);
+        if (karte == null)
+            return BadRequest(new { message = "Karte nicht gefunden." });
+
+        var option = await _db.Option.FirstOrDefaultAsync(o => o.OptionId == request.OptionId && o.KarteId == request.KarteId);
+        if (option == null)
+            return BadRequest(new { message = "Option nicht gefunden." });
+
+        var verlauf = new Spielverlauf
+        {
+            SessionId = id,
+            KarteId = request.KarteId,
+            OptionId = request.OptionId,
+            SpielerId = request.SpielerId,
+            ErhaltePunkte = option.Punkte
+        };
+        _db.Spielverlauf.Add(verlauf);
+
+        var spieler = await _db.SessionSpieler
+            .FirstOrDefaultAsync(ss => ss.SessionId == id && ss.SpielerId == request.SpielerId);
+        if (spieler != null)
+            spieler.Punkte += option.Punkte;
+
+        await _db.SaveChangesAsync();
+
+        var reactioKarte = await _db.Karte
+            .FirstOrDefaultAsync(k => k.AktioKarteId == request.KarteId && k.KartenTyp == "Reaktion");
+
+        return Ok(new
+        {
+            richtig = option.IstRichtig,
+            erhaltePunkte = option.Punkte,
+            gesamtPunkte = spieler?.Punkte ?? 0,
+            reactio = reactioKarte != null ? new
+            {
+                titel = reactioKarte.Titel,
+                inhalt = reactioKarte.Inhalt,
+                reaktionsTyp = reactioKarte.ReaktionsTyp,
+                punkte = reactioKarte.Punkte
+            } : null
+        });
+    }
+
+    // POST /api/sessions/{id}/auswertung → Spielauswertung
+    [HttpPost("{id}/auswertung")]
+    public async Task<IActionResult> Auswertung(int id)
+    {
+        var session = await _db.Session.FirstOrDefaultAsync(s => s.SessionId == id);
+        if (session == null)
+            return NotFound(new { message = "Session nicht gefunden." });
+
+        var szenario = await _db.Szenario.FirstOrDefaultAsync(s => s.SzenarioId == session.SzenarioId);
+        var spieler = await _db.SessionSpieler.Where(ss => ss.SessionId == id).ToListAsync();
+        var gesamtPunkte = spieler.Sum(s => s.Punkte);
+        var minPunkte = szenario?.MinPunkte ?? 0;
+
+        var gewonnen = gesamtPunkte >= minPunkte;
+
+        session.Status = "Beendet";
+        session.EndZeit = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            sessionId = id,
+            szenarioTitel = szenario?.Titel ?? "Unbekannt",
+            gesamtPunkte,
+            minPunkte,
+            gewonnen,
+            message = gewonnen ? "Glueckwunsch! Szenario erfolgreich abgeschlossen!" : "Leider nicht genug Punkte. Versuche es erneut!",
+            spieler = spieler.Select(s => new { s.SpielerId, s.Punkte, s.RolleId })
+        });
+    }
+    
+    
+    
+    
     // Helper
     private static SessionResponse MapToResponse(SpielSession s)
     {
@@ -226,4 +430,6 @@ public class SessionController : ControllerBase
             ErstelltAm = s.ErstelltAm
         };
     }
+    
+    
 }
