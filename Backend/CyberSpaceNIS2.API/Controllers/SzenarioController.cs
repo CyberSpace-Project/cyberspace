@@ -159,7 +159,75 @@ public class SzenarioController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { message = "Szenario geloescht." });
     }
+    // GET /api/szenarien/{id}/export → Szenario als JSON exportieren
+    [HttpGet("{id}/export")]
+    public async Task<IActionResult> ExportSzenario(int id)
+    {
+        var szenario = await _db.Szenario.FirstOrDefaultAsync(s => s.SzenarioId == id);
+        if (szenario == null)
+            return NotFound(new { message = "Szenario nicht gefunden." });
 
+        var phasen = await _db.Phase
+            .Where(p => p.SzenarioId == id)
+            .OrderBy(p => p.Reihenfolge)
+            .ToListAsync();
+
+        var karten = await _db.Karte
+            .Include(k => k.Optionen)
+            .Where(k => phasen.Select(p => p.PhaseId).Contains(k.PhaseId))
+            .ToListAsync();
+
+        return Ok(new
+        {
+            szenario = MapToResponse(szenario),
+            phasen = phasen.Select(p => new
+            {
+                p.PhaseId, p.Titel, p.Beschreibung,
+                p.Reihenfolge, p.ZeitlimitSek, p.MinPunkte
+            }),
+            karten = karten.Select(k => new
+            {
+                k.KarteId, k.Titel, k.Inhalt, k.KartenTyp,
+                k.Punkte, k.KartenCode, k.ReaktionsTyp,
+                optionen = k.Optionen.Select(o => new
+                {
+                    o.OptionId, o.Text, o.IstRichtig, o.Punkte
+                })
+            })
+        });
+    }
+
+    // POST /api/szenarien/import → Szenario importieren
+    [HttpPost("import")]
+    public async Task<IActionResult> ImportSzenario([FromBody] CreateSzenarioRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Titel))
+            return BadRequest(new { message = "Titel ist Pflichtfeld." });
+
+        var szenario = new Szenario
+        {
+            Titel = request.Titel + " (Import)",
+            Beschreibung = request.Beschreibung,
+            SchwierigkeitsGrad = request.SchwierigkeitsGrad,
+            Zielgruppe = request.Zielgruppe,
+            Status = "Entwurf",
+            MinSpieler = request.MinSpieler,
+            MaxSpieler = request.MaxSpieler,
+            Nis2Artikel = request.Nis2Artikel,
+            DauerMinuten = request.DauerMinuten,
+            AnzahlPhasen = request.AnzahlPhasen,
+            ErstelltVon = request.ErstelltVon
+        };
+
+        _db.Szenario.Add(szenario);
+        await _db.SaveChangesAsync();
+
+        return Created($"/api/szenarien/{szenario.SzenarioId}", MapToResponse(szenario));
+    }
+    
+    
+    
+    
     private static SzenarioResponse MapToResponse(Szenario s)
     {
         return new SzenarioResponse
